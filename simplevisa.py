@@ -52,7 +52,7 @@ class HP856x(object):
         return(self.instance.query(request))
         
         
-    def span(self, spanMHz):
+    def setSpan(self, spanMHz):
         ''' 
         set frequency span of spectrum analyzer in (float) MHz 
         '''
@@ -60,16 +60,18 @@ class HP856x(object):
         self.commandInstrument(self.setSpan)
         print(self.setSpan)
         
-    def center(self, centerMHz):
+    def setCenter(self, centerMHz):
         ''' 
         set center frequency of spectrum analyzer in (float) MHz 
         '''
         self.commandInstrument('CF' + str(centerMHz) + 'MHZ')
         
-    def reference(self, external):
+    def setExternalRef(self, external=None):
         ''' 
         set external reference (True) or internal Reference (False), returns INTernal or EXTernal 
         '''
+        if external is None:
+            external = True
         if external == True:
             self.commandInstrument('FREF EXT')
         else:
@@ -104,10 +106,15 @@ class HP856x(object):
         matplotlib.pyplot.grid()    
         matplotlib.pyplot.show()
         
-    def monitor(self):
+    def monitor(self, persistance=None):
         ''' 
         Shows and overdraws measurments from the spectrum analyzer when it updates 
+        
+        persistance overlays graphs continiously when (True)
         '''
+        if persistance is None:
+            persistance = False
+            
         xAxis = []
         for i in range(601):
             xAxis.append(i)
@@ -118,16 +125,17 @@ class HP856x(object):
         matplotlib.pyplot.ylabel('Amplitude [dB]')
         matplotlib.pyplot.title('HP8562 SA Measurment')
         matplotlib.pyplot.grid()  
-        
+ 
         def animate(i):
+            if persistance == False:
+                matplotlib.pyplot.clf()
             self.list = self.getMeasurmentList() 
             matplotlib.pyplot.scatter(xAxis, self.list, s=1)
-            matplotlib.pyplot.plot(xAxis, self.list)
-        
+            
+            self.line = matplotlib.pyplot.plot(xAxis, self.list) 
+                        
         self.ani = animation.FuncAnimation(self.fig, animate, interval=10)
         matplotlib.pyplot.show()
-
-        
     '''
     Constructor
     '''
@@ -166,7 +174,7 @@ class RSSMTx(object):
         '''
         return(self.instance.query(request))  
     
-    def rfOff(self, state):
+    def outOff(self, state):
         '''
         Turn of RF output (True) or turn it on (False)
         '''
@@ -182,6 +190,86 @@ class RSSMTx(object):
         self.commandInstrument("FREQ " + str(frequency) +'MHZ' + ": " + "POW" + str(amplitude) + 'DBM')
         
     
+class HP3488(object):
+    '''
+    classdocs
+    This class provides an easy interface to the HP3488 Switch module 
+    It should also work with with other RS signal generators. 
+    
+    TODO: 
+    '''
+    def __init__(self, bus, addr):
+        ''' 
+        Initiate GPIB instance 
+        '''
+        self.visaID = 'GPIB' + str(bus) +'::' + str(addr) + '::INSTR'
+        self.rm = visa.ResourceManager()       
+        self.instance = self.rm.open_resource(str(self.visaID))
+        self.commandInstrument('*RST; *CLS')
 
+    def commandInstrument(self, command):
+        ''' 
+        Send a GPIB command to instrument 
+        Raises an exception if device unreachable
+        '''
+        code = self.instance.write(str(command))   
+        if '<StatusCode.success: 0>' not in str(code):
+            raise Exception("RS HP3488 device did not respond correctly!")
+        
+    def writeRelay(self, module, relay, state):
+        ''' 
+        Sets relay to open or closed
+        '''
+        
+    def writeIO(self, module, relay, state):
+        ''' 
+        Sets relay to open or closed
+        '''
+        
+    def readIO(self, module, relay, state):
+        ''' 
+        Sets relay to open or close
+        '''
+    
+    
+class HPPow(object):
+    '''
+    classdocs
+    This class provides an easy interface to multiple HP system power supplies 
+    
+    TODO: Only tested and implemented with com. over GPIB port --not RS232
+    '''
+    def __init__(self, bus, addr):
+        ''' 
+        Initiate GPIB instance 
+        '''
+        self.visaID = 'GPIB' + str(bus) +'::' + str(addr) + '::INSTR'
+        self.rm = visa.ResourceManager()       
+        self.instance = self.rm.open_resource(str(self.visaID))
+        self.commandInstrument('*RST; *CLS')
+
+    def commandInstrument(self, command):
+        ''' 
+        Send a GPIB command to instrument 
+        Raises an exception if device unreachable
+        '''
+        code = self.instance.write(str(command))   
+        if '<StatusCode.success: 0>' not in str(code):
+            raise Exception("RS HP3488 device did not respond correctly!")
+        
+    def setVoltage(self, channel, voltage):
+        ''' 
+        Set voltage (float)
+        '''
+        self.commandInstrument('VSET' + str(channel) + ',' + str(voltage))
+        return self.queryInstrument('VOUT?')
+        
+    def setCurrent(self, channel, current):
+        ''' 
+        Set voltage (float)
+        Return voltage (float)
+        '''
+        self.commandInstrument('CSET' + str(channel) + ',' + str(current))
+        return self.queryInstrument('COUT?')
 
         
