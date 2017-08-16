@@ -1,0 +1,7 @@
+setup.cfg
+setup.py
+simplevisa/simplevisa.py
+simplevisa.egg-info/PKG-INFO
+simplevisa.egg-info/SOURCES.txt
+simplevisa.egg-info/dependency_links.txt
+simplevisa.egg-info/top_level.txt
