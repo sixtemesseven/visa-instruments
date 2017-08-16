@@ -1,5 +1,5 @@
 # visa-instruments
-Simple to use interface for different measurment devices using pyvisa and ni-visa over GPIB, USB and ...
+Simple to use interface for different measurment devices using pyvisa and ni-visa over GPIB, USB etc.
 
 ## simplevisa
 Use simplevisa.py by including it in python 3.6+ project or import the content as project into eclipse / pydev.
