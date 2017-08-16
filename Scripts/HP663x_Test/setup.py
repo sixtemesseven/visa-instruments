@@ -5,7 +5,7 @@ base = None
 
 executables = [Executable("HP663x_Test.py", base=base)]
 
-packages = ["numpy", "matplotlib"]
+packages = ["simplevisa", ]
 options = {
     'build_exe': {
 
