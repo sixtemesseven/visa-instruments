@@ -3,9 +3,9 @@ from cx_Freeze import setup, Executable
 base = None
 
 
-executables = [Executable("my first prog.py", base=base)]
+executables = [Executable("HP663x_Test.py", base=base)]
 
-packages = ["idna"]
+packages = ["numpy", "matplotlib"]
 options = {
     'build_exe': {
 
