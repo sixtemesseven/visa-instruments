@@ -25,4 +25,5 @@ Use simplevisa.py by including it in python 3.6+ project or import the content a
 
 Scripts
 	- HP662xA Test 
-		Runs trough CC and CV range while logging and ploting 			Voltage and Current by the Rigol DM3068 Multimeter.
+		Runs trough CC and CV range while logging and ploting 			
+		Voltage and Current by the Rigol DM3068 Multimeter.
