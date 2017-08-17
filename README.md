@@ -3,9 +3,6 @@ Simple to use interface for different measurment devices using pyvisa and ni-vis
 Install with:
 * pip install simplevisa
 
-## simplevisa
-Use simplevisa.py by including it in python 3.6+ project or import the content as project into eclipse / pydev.
-
 ## (Partially) Supported instruments
 * HP856x Series Spectrum Analyzer 
 	* Agilent 8562EC
