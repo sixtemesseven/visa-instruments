@@ -4,7 +4,7 @@ Created on Jul 2, 2017
 @author: sixtimesseven
 '''
 
-from simplevisa import *
+import simplevisa 
 import numpy as np
 import matplotlib.pyplot as plt
 

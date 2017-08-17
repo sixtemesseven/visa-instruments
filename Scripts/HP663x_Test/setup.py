@@ -5,19 +5,18 @@ base = None
 
 executables = [Executable("HP663x_Test.py", base=base)]
 
-packages = ["simplevisa", ]
+packages = ["simplevisa"]
 options = {
     'build_exe': {
-
         'packages':packages,
     },
 
 }
 
 setup(
-    name = "<any name>",
+    name = "HP663x_Test",
     options = options,
-    version = "<any number>",
-    description = '<any description>',
+    version = "18.08.2017.1",
+    description = 'Small Test Script',
     executables = executables
 )
