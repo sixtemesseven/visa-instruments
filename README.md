@@ -1,5 +1,7 @@
-# visa-instruments
+# simplevisa
 Simple to use interface for different measurment devices using pyvisa and ni-visa over GPIB, USB etc.
+Install with:
+* pip install simplevisa
 
 ## simplevisa
 Use simplevisa.py by including it in python 3.6+ project or import the content as project into eclipse / pydev.
@@ -23,6 +25,6 @@ Use simplevisa.py by including it in python 3.6+ project or import the content a
 	* Rigol DM3068 (USB)
 	
 ## Scripts
-###HP662xA Test 
+### HP662xA Test 
 Runs trough CC and CV range while logging and ploting 			
 Voltage and Current by the Rigol DM3068 Multimeter.
