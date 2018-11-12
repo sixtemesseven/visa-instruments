@@ -1,2 +1,0 @@
-Run:
-pyinstaller HP663x_Test.py
