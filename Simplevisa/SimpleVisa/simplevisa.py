@@ -734,6 +734,7 @@ class HP3577(object):
         
     def getData(self, channel):
         {
+                print(querryInstrument("DR" + str(channel)))
                 
         }
 
