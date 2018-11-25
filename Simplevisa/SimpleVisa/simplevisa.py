@@ -16,6 +16,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import string
 import math
+import cmath
 
 class GPIB(object):
     '''
@@ -732,11 +733,48 @@ class HP3577(object):
         '''
         self.commandInstrument("FRA " + str(f) + "MHz")
         
-    def getData(self, channel):
-        {
-                print(querryInstrument("DR" + str(channel)))
-                
-        }
+        
+    def getData(self, channel):       
+        '''
+        returns data from measurment register channel in complex format. Number of points depend on number of sampling points
+        '''
+        
+        meas = self.queryInstrument("DR" + str(channel))
+        self.dataStr = str(meas)
+        registerDataList = self.dataStr.split(",") 
+        
+        nos = int(len(registerDataList)/2)
+        registerDataListComplex = []
+        
+        sample = 0
+        for i in range(0, nos):
+            komplex = complex(float(registerDataList[sample]), float(registerDataList[sample+1]))
+            registerDataListComplex.append(komplex)
+            sample = sample + 2;
+        
+        return(registerDataListComplex)
+        
+        
+    def plotPolar(self, channel):
+        '''
+        Returns a polar plot of the selected channel
+        '''
+        X = []
+        Y = []
+        
+        data = self.getData(channel)
+        
+        nos = len(data)
+        
+        for i in range(0, nos):
+            X.append(data[i].real)
+            Y.append(data[i].imag)
+
+        plt.scatter(X,Y, color='red')
+        plt.show()
+
+        
+
 
  
         
