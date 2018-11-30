@@ -772,6 +772,29 @@ class HP3577(object):
 
         plt.scatter(X,Y, color='red')
         plt.show()
+        
+    def getMag(self, data):
+        
+    def getPhase(self, data):
+        
+    def getMagResponse(self):
+        
+    def getPhaseResponse(self):
+        
+    def setATTEN(self):
+        
+    def setRBW(self):
+        
+    def setFRQ(self):
+        
+    def setAVERAGE(self):
+        
+    def setBasics(self):
+        
+        
+    def bodePlot(self, data):
+        
+    
 
         
 
