@@ -772,27 +772,70 @@ class HP3577(object):
 
         plt.scatter(X,Y, color='red')
         plt.show()
+      
         
-    def getMag(self, data):
+    def getMag(self, dataListComplex):
+        magnitudeList = []
+        for i in range(0, len(dataListComplex)):
+            magnitudeList.append(sqrt(pow(dataListComplex[i].real, 2) + pow(dataListComplex[i].imag, 2)))
+        return(magnitudeList)
+        
         
     def getPhase(self, data):
+        phaseList = []
+        for i in range(0, len(dataListComplex)):
+            phaseList.append()
+        return(phaseList)
+        
         
     def getMagResponse(self):
         
+        
     def getPhaseResponse(self):
+      
         
-    def setATTEN(self):
+    def setATTEN(self, channel, attenuation, impeadance):
+    
         
-    def setRBW(self):
+    def setRBW(self, rbw): ##1, 10, 100, 1000 
+    '''
+    rb sets ResolutionBandWitdh for all channels, valid inputs for rb: 1, 10, 100, 1000 [HZ]
+    SWEEP time has to be set in relation to RBW - see manual page [TODO]
+    '''
+    
+    def setSweep(self, time, mode, type):
         
-    def setFRQ(self):
         
-    def setAVERAGE(self):
+    def trigger(self)
         
-    def setBasics(self):
+    
+    def setFRQ(self, startF, stopF):
+      
+        
+    def normalize(self, channel):
+        
+        
+    def normalizeShort(self, channel):
+       
+        
+    def setAVERAGE(self, averageMode):
+       
+        
+    def setBasics(self):     
         
         
     def bodePlot(self, data):
+        
+        
+    def saveSettings(self, memorySlot):
+        
+        
+    def restoreSettings(self, memorySlot):
+        
+        
+    def reset(self)
+        
+
         
     
 
