@@ -705,6 +705,7 @@ class HP3577(object):
         self.visaID = 'GPIB' + str(bus) + '::' + str(addr) + '::INSTR'
         self.rm = visa.ResourceManager()
         self.instance = self.rm.open_resource(str(self.visaID))
+     
         
     def commandInstrument(self, command):
         '''
@@ -714,6 +715,7 @@ class HP3577(object):
         code = self.instance.write(str(command))
         if '<StatusCode.success: 0>' not in str(code):
             raise Exception("RS HP3488 device did not respond correctly!")
+
 
     def queryInstrument(self, request):
         '''
@@ -725,33 +727,45 @@ class HP3577(object):
         Set voltage and get current
         Input:
         Voltage input, floating point or scientific, use "."
+        '''       
+        
+    def getStatusByte(self):
         '''
-
-    def setStartF(self, f):
+        Read the status Byte of the instrument
         '''
-        set start frequency in MHZ (float)
+        return(self.instance.read_stb())
+        
+        
+    def sweepComplete(self):
         '''
-        self.commandInstrument("FRA " + str(f) + "MHz")
+        Tests if the measurments have been completed
+        '''
+        byte = self.getStatusByte()
+        mask = 1 << 2 #Bit B2 is the measurment complete status byte
+        if(byte & mask == 4):
+            return(True)
+        else:
+            return(False)
         
         
     def getData(self, channel):       
         '''
         returns data from measurment register channel in complex format. Number of points depend on number of sampling points
         '''
+       
+        self.commandInstrument('CH0, FM2, BD0') #Turn characters off, turn buss diagnostics off, set data type to binary     
+        binary = self.instance.query_binary_values('DR' + str(channel), datatype='d', is_big_endian=True) #Read binary data (faster)
         
-        meas = self.queryInstrument("DR" + str(channel))
-        self.dataStr = str(meas)
-        registerDataList = self.dataStr.split(",") 
-        
-        nos = int(len(registerDataList)/2)
+        nos = int(len(binary)/2)
         registerDataListComplex = []
         
         sample = 0
         for i in range(0, nos):
-            komplex = complex(float(registerDataList[sample]), float(registerDataList[sample+1]))
+            komplex = complex(float(binary[sample]), float(binary[sample+1]))
             registerDataListComplex.append(komplex)
-            sample = sample + 2;
+            sample = sample + 2;    
         
+        self.commandInstrument('CH1, FM1, BD1') #Turns all back on
         return(registerDataListComplex)
         
         
@@ -777,63 +791,167 @@ class HP3577(object):
     def getMag(self, dataListComplex):
         magnitudeList = []
         for i in range(0, len(dataListComplex)):
-            magnitudeList.append(sqrt(pow(dataListComplex[i].real, 2) + pow(dataListComplex[i].imag, 2)))
+            magnitudeList.append(math.sqrt(pow(dataListComplex[i].real, 2) + pow(dataListComplex[i].imag, 2)))
         return(magnitudeList)
         
         
     def getPhase(self, data):
         phaseList = []
-        for i in range(0, len(dataListComplex)):
+        for i in range(0, len(data)):
             phaseList.append()
         return(phaseList)
         
         
-    def getMagResponse(self):
+    def setAVERAGE(self, averageMode):  
+        '''
+        Number of samples which get averaged
+        Possible Settings:
+            0 = OFF
+            1 = 4
+            2 = 8
+            n = 2^(n+1)
+            7 = 256
+        '''
+        self.commandInstrument('AB'+str(averageMode))
+  
+    
+    def plotMag(self, channel):
+        '''
+        Will plot the linear response of selected channel in [mV]
+        '''
+        plt.plot(self.getMag(self.getData(channel)))
+
+        
+    def plotPhase(self, channel):
+        plt.plot(self.getPhase(self.getData(channel)))
         
         
-    def getPhaseResponse(self):
+    def plotMagdBm(self, channel, sourceResistance=50):
+        '''
+        Will plot log magnitude of channel in [dBm] assuming 50Ohm system
+        '''
+        magnitudeList = self.getMag(self.getData(channel))
+        magnitudeListLog = []
+        
+        nos = len(magnitudeList)
+        for i in range(0, nos):
+            magnitudeListLog.append(10 * math.log10(pow(magnitudeList[i], 2) / sourceResistance))
+            
+        plt.plot(magnitudeListLog)
       
-        
+
     def setATTEN(self, channel, attenuation, impeadance):
+        return()
     
         
     def setRBW(self, rbw): ##1, 10, 100, 1000 
-    '''
-    rb sets ResolutionBandWitdh for all channels, valid inputs for rb: 1, 10, 100, 1000 [HZ]
-    SWEEP time has to be set in relation to RBW - see manual page [TODO]
-    '''
+        '''
+        #rb sets ResolutionBandWitdh for all channels, valid inputs for rb: 1, 10, 100, 1000 [HZ]
+        #SWEEP time has to be set in relation to RBW - see manual page [TODO]
+        '''
+        return()
+
     
-    def setSweep(self, time, mode, type):
+    def setSweep(self, sweepTime, sweepMode='continious', sweepType='linear'):
+        mode = 1
+        typ = 1
+        
+        if(sweepMode == 'continious'):
+            mode = 1
+        elif(sweepMode == 'single'):
+            mode = 2       
+        elif(sweepMode == 'manual'):
+            mode = 3
+        else:
+            print("ERROR SWEEP MODE ARGUMENT INVALID")
+            return()
+
+        if(sweepType == 'linear'):
+            typ = 1     
+        elif(sweepType == 'alternate'):
+            typ = 2 
+        elif(sweepType == 'log'):
+            typ = 3             
+        elif(sweepType == 'cwr'):
+            typ = 5 
+        else:
+            print("ERROR SWEEP TYPE ARGUMENT INVALID")
+            return()
+            
+        print('ST'+str(typ)+', SM' + str(mode) + ', SWT ' + str(sweepTime) + ' MSC')
+        self.commandInstrument('ST'+str(typ)+', SM' + str(mode)+ ', SWT ' + str(sweepTime) + ' MSC')
+        return()
         
         
-    def trigger(self)
+    def trigger(self):
+        '''
+        Will imeadiatly trigger insturment
+        '''
+        self.commandInstrument('TG4')
         
     
     def setFRQ(self, startF, stopF):
+        '''
+        Set start and stop frequency in khz
+        '''
+        self.commandInstrument('FRA ' + str(startF) + 'MHZ, FRB ' + str(stopF) + 'MHZ')
+        
+        
+    def setCenterFRQ(self, centerF):
+        '''
+        set center freqeuency in MHz
+        '''
+        self.commandInstrument('FRC '+str(centerF)+'MHZ')        
       
         
     def normalize(self, channel):
+        self.commandInstrument('NRM')
         
         
     def normalizeShort(self, channel):
+        self.commandInstrument('NRS')
        
         
     def setAVERAGE(self, averageMode):
-       
-        
-    def setBasics(self):     
+        return()
         
         
     def bodePlot(self, data):
+        return()
         
         
     def saveSettings(self, memorySlot):
-        
+        '''
+        Saves current settings to memory slot 1-5
+        '''
+        if( 5 > memorySlot < 1):
+            return("ERROR MEMORY SLOT OUT OF RANGE")
+        self.commandInstrument('SV'+str(memorySlot))
+        return()
+                
         
     def restoreSettings(self, memorySlot):
+        '''
+        Gets settings to memory slot 1-5
+        '''
+        if( 5 > memorySlot < 1):
+            return("ERROR MEMORY SLOT OUT OF RANGE")
+        self.commandInstrument('RC'+str(memorySlot))
+        return()
         
         
-    def reset(self)
+    def reset(self):
+        self.commandInstrument('RST')
+        
+        
+    def getSinglePoint(self, channel, frequency):
+        '''
+        Get a single mesurement from a single channel / frequency via CW
+        '''
+        self.commandInstrument('NRM')
+        
+        
+
         
 
         
