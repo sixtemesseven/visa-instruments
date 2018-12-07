@@ -17,33 +17,9 @@ import matplotlib.pyplot as plt
 import string
 import math
 import cmath
+import time
+from skrf import Network, Frequency
 
-class GPIB(object):
-    '''
-    Wraper for basic GPIB / SCPI commands
-    '''
-    def __init__(self, bus, addr):
-        '''
-        Initiate GPIB instance
-        '''
-        self.visaID = 'GPIB' + str(bus) + '::' + str(addr) + '::INSTR'
-        self.rm = visa.ResourceManager()
-        self.instance = self.rm.open_resource(str(self.visaID))
-
-    def commandInstrument(self, command):
-        '''
-        Send a GPIB command to instrument
-        Raises exception if the device is unreachable
-        '''
-        code = self.instance.write(str(command))
-        if '<StatusCode.success: 0>' not in str(code):
-            raise Exception("Device did not respond correctly!")
-
-    def queryInstrument(self, request):
-        '''
-        Query GPIB Device
-        '''
-        return(self.instance.query(str(request)))
         
         
 class HP856x(object):
@@ -753,7 +729,7 @@ class HP3577(object):
         returns data from measurment register channel in complex format. Number of points depend on number of sampling points
         '''
        
-        self.commandInstrument('CH0, FM2, BD0') #Turn characters off, turn buss diagnostics off, set data type to binary     
+        self.commandInstrument('FM2') #Turn characters off, turn buss diagnostics off, set data type to binary     
         binary = self.instance.query_binary_values('DR' + str(channel), datatype='d', is_big_endian=True) #Read binary data (faster)
         
         nos = int(len(binary)/2)
@@ -892,9 +868,9 @@ class HP3577(object):
     
     def setFRQ(self, startF, stopF):
         '''
-        Set start and stop frequency in khz
+        Set start and stop frequency in MHZ
         '''
-        self.commandInstrument('FRA ' + str(startF) + 'MHZ, FRB ' + str(stopF) + 'MHZ')
+        self.commandInstrument('FRA ' + str(startF) + ' MHZ, FRB ' + str(stopF) + 'MHZ')
         
         
     def setCenterFRQ(self, centerF):
@@ -944,12 +920,34 @@ class HP3577(object):
         self.commandInstrument('RST')
         
         
-    def getSinglePoint(self, channel, frequency):
+    def getSinglePoint(self, channel, frequency, sampleTime=0.05):
         '''
-        Get a single mesurement from a single channel / frequency via CW
+        Get a single mesurement from a single channel / frequency [MHz] via CW, sample time is in [ms]
+        TODO Does not fully work yet ... Dont receive data ???
         '''
-        self.commandInstrument('NRM')
+
+        self.commandInstrument('ST5')
+        self.commandInstrument('SFR ' + str(frequency) + ' MHZ')
+        self.commandInstrument('MSR ' + str(sampleTime) + ' MSC')
+        time.sleep(1)
+        self.commandInstrument('TRG')
+        time.sleep(1)
+        return(self.instance.query_binary_values('DR' + str(channel), datatype='d', is_big_endian=True)) #Read binary data (faster)
         
+        
+    def put1Network(self, channel, startF, stopF):
+        self.setFRQ(startF, stopF)
+        while(self.sweepComplete == False):
+            x=1
+        buffer = self.getData(channel)
+
+        fObject = Frequency(startF, stopF, len(buffer), 'mhz')
+        Net = Network(frequency=fObject, s=buffer, z0=[50], name=str(channel))
+        
+        return Net
+
+        
+
         
 
         
