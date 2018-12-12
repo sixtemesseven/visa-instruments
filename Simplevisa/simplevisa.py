@@ -726,7 +726,10 @@ class HP3577(object):
         
     def getData(self, channel):       
         '''
-        returns data from measurment register channel in complex format. Number of points depend on number of sampling points
+        Intup Measurment channe: 'R', 'A', 'B'
+        Return: numpy array
+        
+        Warning: Does not set number of meas. points
         '''
        
         self.commandInstrument('FM2') #Turn characters off, turn buss diagnostics off, set data type to binary     
@@ -743,6 +746,16 @@ class HP3577(object):
         
         self.commandInstrument('CH1, FM1, BD1') #Turns all back on
         return(registerDataListComplex)
+        
+        
+    def getDataNP(self, channel):
+        '''
+        Intup Measurment channe: 'R', 'A', 'B'
+        Return: numpy array
+        
+        Warning: Does not set number of meas. points
+        '''
+        return(np.asarray(self.getData(channel)))
         
         
     def plotPolar(self, channel):
