@@ -734,7 +734,7 @@ class HP3577(object):
        
         self.commandInstrument('FM2') #Turn characters off, turn buss diagnostics off, set data type to binary     
         binary = self.instance.query_binary_values('DR' + str(channel), datatype='d', is_big_endian=True) #Read binary data (faster)
-        
+       
         nos = int(len(binary)/2)
         registerDataListComplex = []
         
@@ -744,7 +744,7 @@ class HP3577(object):
             registerDataListComplex.append(komplex)
             sample = sample + 2;    
         
-        self.commandInstrument('CH1, FM1, BD1') #Turns all back on
+        self.commandInstrument('FM1') #Turns all back on
         return(registerDataListComplex)
         
         

@@ -5,7 +5,10 @@ import matplotlib.pyplot as plt
 
 
 
-inputAmplitude = 0.020 #[V]
+inputAmplitude = 0.040 #[V]
+shuntRes = 9.962+0j
+
+
 rm = visa.ResourceManager()
 print(rm.list_resources())
 
@@ -19,7 +22,8 @@ A0 = vna.getDataNP('A')
 
 ampt = np.full(400, inputAmplitude+0j)
 refR = np.subtract(ampt, R0)
-refA = np.subtract(ampt, A0) 
+refA = np.subtract(ampt, A0)
+
 
 plt.plot(refR)
 plt.plot(refA)
@@ -33,22 +37,19 @@ while(True):
         if(x == 'end'): 
             break
         
-        R = np.add(np.asarray(vna.getData('R')), refR)
-        A = np.add(np.asarray(vna.getData('A')), refA)
+        R = np.add(vna.getDataNP('R'), refR)
+        V = np.add(vna.getDataNP('A'), refA)      
         
+        shuntArr = np.full(400, shuntRes)
         
-        arr10 = np.full(400, 10+0j)
-        absolute = np.full(400, 0)
-        
-        VShunt = np.subtract(R, A)
-        result = np.subtract(np.divide(np.multiply(arr10, R), VShunt), arr10)
+        VShunt = np.subtract(R, V) 
+        I = np.divide(VShunt, shuntArr)
+        result = np.divide(V, I)
+
         absolute = np.absolute(result)  
         plt.plot(absolute)
         plt.show()
-        
-
-sas
-            
+    
                     
 
 
