@@ -12,9 +12,6 @@ import matplotlib.pyplot as plt
 
 shuntRes = 9.962+0j
 
-rm = visa.ResourceManager()
-print(rm.list_resources())
-
 vna = simplevisa.HP3577(0,11)
 
 R = vna.getDataNP('R')
@@ -24,7 +21,6 @@ A = vna.getDataNP('A')
 #np.savetxt("A_10Ohm.cvs",R,delimiter=', ')
 
 shuntArr = np.full(400, shuntRes)
-
 VShunt = np.subtract(R, A)
 I = np.divide(VShunt, shuntArr)
 result = np.divide(A, I)
