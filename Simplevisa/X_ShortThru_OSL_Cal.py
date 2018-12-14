@@ -60,7 +60,7 @@ Zlmi = X(R_Load, A_Load, R0) #Measured impeadance for load standard
 Yom = np.reciprocal(X(R_Open, A_Open, R0)) #Measured admitance for open standard
 Zsm = X(R_Short, A_Short, R0) #Measured impeadance for open standard
 A = np.divide(np.subtract(arr1, np.multiply(Zlmi, Yom)), np.subtract(Zlmi, Zsm))
-Zlsi = np.full(400, 50+0j) #TODO Zlsi should be the TRUE impeadance for the load standart (Non Ideal resistor so =/= 50+0j of course)
+Zlsi = np.full(400, 49.2+0j) #TODO Zlsi should be the TRUE impeadance for the load standart (Non Ideal resistor so =/= 50+0j of course)
 
 
 '''
@@ -82,6 +82,8 @@ A = vna.getDataNP('A')
 ''' 
 Plot Resulting Impeadance
 '''
+impeadance = np.absolute(Xcal(K1, K2, K3, R, A, R0))
+print(impeadance[399])
 plt.plot(np.absolute(Xcal(K1, K2, K3, R, A, R0)))
 plt.show()
 
