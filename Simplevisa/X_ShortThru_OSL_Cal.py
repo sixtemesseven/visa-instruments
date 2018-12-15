@@ -19,9 +19,18 @@ import matplotlib.pyplot as plt
 
 
 '''
+User Settings
+'''
+startFrequency = 1000
+stopFrequency = 10000000
+BW = 10
+SweepTime = 50
+
+
+'''
 Function to calculate impeadance - Page 67 Equ. 1
 '''
-def Xcal(K1, K2, K3, R, A, R0):
+def Xcal(K1, K2, K3, R, A):
     arr1 = np.full(400, 1.0) #Array filled with 1
     V1 = np.subtract(R, A)
     V2 = A
@@ -36,7 +45,6 @@ Load all the OSL cal K parameters from file - You can get them by executing Save
 K1 = np.loadtxt('HP3577_HighZImpeadanceMeas\K1.txt').view(complex).reshape(-1) #Read array from file
 K2 = np.loadtxt('HP3577_HighZImpeadanceMeas\K2.txt').view(complex).reshape(-1) #Read array from file
 K3 = np.loadtxt('HP3577_HighZImpeadanceMeas\K3.txt').view(complex).reshape(-1) #Read array from file
-R0 = np.loadtxt('HP3577_HighZImpeadanceMeas\R0.txt').view(complex).reshape(-1) #Read array from file
 
 
 '''
@@ -50,8 +58,11 @@ A = vna.getDataNP('A')
 ''' 
 Plot Resulting Impeadance
 '''
-impeadance = np.absolute(Xcal(K1, K2, K3, R, A, R0))
-plt.plot(np.absolute(Xcal(K1, K2, K3, R, A, R0)))
+fStep = (stopFrequency - startFrequency) / (400)
+yAxis = np.arange(startFrequency, stopFrequency, fStep)
+Xdut = Xcal(K1, K2, K3, R, A)
+plt.plot(yAxis, np.absolute(Xdut))
+plt.plot(yAxis, np.angle(Xdut))
 plt.show()
 
 

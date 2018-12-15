@@ -32,7 +32,6 @@ input()
 R_Open = vna.getDataNP('R')
 A_Open = vna.getDataNP('A')
 
-
 print("Press any Key to start with SHORT measurment")
 input()
 R_Short = vna.getDataNP('R')
@@ -64,9 +63,13 @@ K1 = np.multiply(np.multiply(A, Zlsi), R0)
 K2 = np.divide(np.multiply(arrNeg1, Zsm), R0)
 K3 = np.multiply(np.multiply(arrNeg1, Yom), R0)
 
+'''
+Save the K cal Parameters to file
+'''
+
 np.savetxt('HP3577_HighZImpeadanceMeas\K1.txt', K1.view(float).reshape(-1, 2)) #Save array to file
 np.savetxt('HP3577_HighZImpeadanceMeas\K2.txt', K2.view(float).reshape(-1, 2)) #Save array to file
 np.savetxt('HP3577_HighZImpeadanceMeas\K3.txt', K3.view(float).reshape(-1, 2)) #Save array to file
-np.savetxt('HP3577_HighZImpeadanceMeas\R0.txt', K3.view(float).reshape(-1, 2)) #Save array to file #TODO get the real measured value based from real measurments depending on range...
+
 
 print("FINISHED")
