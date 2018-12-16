@@ -17,10 +17,8 @@ import numpy as np
 import simplevisa #https://github.com/sixtemesseven/visa-instruments
 import matplotlib.pyplot as plt
 
-
-'''
-User Settings
-'''
+#USER SETTINGS
+#TODO get directly with K parameters...
 startFrequency = 0.1
 stopFrequency = 10
 BW = 10
@@ -39,28 +37,18 @@ def Xcal(K1, K2, K3, R, A):
     return Zx
 
 
-'''xczxc
+'''
 Load all the OSL cal K parameters from file - You can get them by executing Save_OSL.py first
 '''
-K1 = np.loadtxt('HP3577_HighZImpeadanceMeas\K1.txt').view(complex).reshape(-1) #Read array from file
-K2 = np.loadtxt('HP3577_HighZImpeadanceMeas\K2.txt').view(complex).reshape(-1) #Read array from file
-K3 = np.loadtxt('HP3577_HighZImpeadanceMeas\K3.txt').view(complex).reshape(-1) #Read array from file
+K1 = np.loadtxt('calData\K1.txt').view(complex).reshape(-1) #Read array from file
+K2 = np.loadtxt('calData\K2.txt').view(complex).reshape(-1) #Read array from file
+K3 = np.loadtxt('calData\K3.txt').view(complex).reshape(-1) #Read array from file
 
 
 '''
-Setup instrument and get the current meas data to calculate impeadance
+Take single measurment
 '''
 vna = simplevisa.HP3577(0,11)
-vna.reset()
-vna.setSweepTime(sweepTime)
-vna.setSweepType(sweepType='log')
-vna.setRBW('1HZ')
-vna.setImpeadance('R', '1MOhm')
-vna.setImpeadance('A', '1MOhm')
-vna.setAttenuation('R', '20dB')
-vna.setAttenuation('A', '20dB')
-vna.setFRQ(startFrequency, stopFrequency)
-vna.setSourceAmplitude('10 MV')
 vna.doSingleSweep()
 R = vna.getDataNP('R')
 A = vna.getDataNP('A')

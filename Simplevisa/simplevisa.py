@@ -918,15 +918,15 @@ class HP3577(object):
         self.commandInstrument('SWT ' + str(sweepTime) + ' MSC') 
     
     
-    def doSingleSweep(self, sweepTime):
+    def doSingleSweep(self):
         '''
         Will set and trigger a single sweep of the instrument
         '''
         self.setSweep(sweepMode='single')
         self.trigger()
-        time.sleep(sweepTime)
+        time.sleep(2)
         while(self.sweepComplete() == False):
-            time.sleep(1)
+            time.sleep(3)
 
  
     def trigger(self):

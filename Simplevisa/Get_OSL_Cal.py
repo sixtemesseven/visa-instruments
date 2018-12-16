@@ -13,6 +13,18 @@ Short script to load OSL cal data into .txt files @\HP3577_HighZImpeadanceMeas
 import numpy as np
 import simplevisa #https://github.com/sixtemesseven/visa-instruments
 
+'''
+User Settings
+'''
+startFrequency = 0.1
+stopFrequency = 10
+BW = 10
+sweepTime = 50000 #[ms]
+
+##################################################################################################################
+#NO USER EDITS BYOND HERE
+##################################################################################################################
+
 
 '''
 Function to get impeadance value - Page 68 Equ. 4
@@ -22,23 +34,39 @@ def X(R, A, R0):
     I = np.divide(VShunt, R0)
     return np.divide(A, I)
 
-    
+
+'''
+Setup instrument and get the current meas data to calculate impeadance
+'''
 vna = simplevisa.HP3577(0,11)
+vna.reset()
+vna.setSweepTime(sweepTime)
+vna.setSweepType(sweepType='log')
+vna.setRBW('1HZ')
+vna.setImpeadance('R', '1MOhm')
+vna.setImpeadance('A', '1MOhm')
+vna.setAttenuation('R', '20dB')
+vna.setAttenuation('A', '20dB')
+vna.setFRQ(startFrequency, stopFrequency)
+vna.setSourceAmplitude('10 MV')
 
 
 print("THIS WILL OVERWRITE YOUR EXISTING OSL CAL VALUES AT \HP3577_HighZImpeadanceMeas")
 print("Press any Key to start with OPEN measurment")
 input()
+vna.doSingleSweep()
 R_Open = vna.getDataNP('R')
 A_Open = vna.getDataNP('A')
 
 print("Press any Key to start with SHORT measurment")
 input()
+vna.doSingleSweep()
 R_Short = vna.getDataNP('R')
 A_Short = vna.getDataNP('A')
 
 print("Press any Key to start with 50OHM_LOAD  measurment")
 input()
+vna.doSingleSweep()
 R_Load = vna.getDataNP('R')
 A_Load = vna.getDataNP('A')
 
@@ -67,9 +95,9 @@ K3 = np.multiply(np.multiply(arrNeg1, Yom), R0)
 Save the K cal Parameters to file
 '''
 
-np.savetxt('HP3577_HighZImpeadanceMeas\K1.txt', K1.view(float).reshape(-1, 2)) #Save array to file
-np.savetxt('HP3577_HighZImpeadanceMeas\K2.txt', K2.view(float).reshape(-1, 2)) #Save array to file
-np.savetxt('HP3577_HighZImpeadanceMeas\K3.txt', K3.view(float).reshape(-1, 2)) #Save array to file
+np.savetxt('calData\K1.txt', K1.view(float).reshape(-1, 2)) #Save array to file
+np.savetxt('calData\K2.txt', K2.view(float).reshape(-1, 2)) #Save array to file
+np.savetxt('calData\K3.txt', K3.view(float).reshape(-1, 2)) #Save array to file
 
 
 print("FINISHED")
