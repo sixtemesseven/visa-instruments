@@ -829,21 +829,58 @@ class HP3577(object):
         plt.plot(magnitudeListLog)
       
 
-    def setATTEN(self, channel, attenuation, impeadance):
-        return()
+    def setAttenuation(self, channel, attenuation='20dB'):
+        '''
+        Set attenuation of channel, 0dB or 20dB
+        '''
+        if(attenuation == '0dB'):
+            mode = 1
+        elif(attenuation == '20dB'):
+            mode = 2       
+        else:
+            print("ERROR ATTEN ARGUMENT INVALID")
+            return()  
+        self.commandInstrument('A' + str(channel) + str(mode))
+        
+        
+    def setImpeadance(self, channel, impeadance='50Ohm'):
+        '''
+        Set attenuation of channel, 0dB or 20dB
+        '''
+        mode = 1
+        if(impeadance == '50Ohm'):
+            mode = 1
+        elif(impeadance == '1MOhm'):
+            mode = 2       
+        else:
+            print("ERROR ATTEN ARGUMENT INVALID")
+            return()  
+        self.commandInstrument('A' + str(channel) + str(mode))
     
         
-    def setRBW(self, rbw): ##1, 10, 100, 1000 
+    def setRBW(self, rbw='1000HZ'): 
         '''
         #rb sets ResolutionBandWitdh for all channels, valid inputs for rb: 1, 10, 100, 1000 [HZ]
         #SWEEP time has to be set in relation to RBW - see manual page [TODO]
         '''
-        return()
+        mode = 1
+        
+        if(rbw == '1HZ'):
+            mode = 1
+        elif(rbw == '10HZ'):
+            mode = 2       
+        elif(rbw == '100HZ'):
+            mode = 3
+        elif(rbw == '1000HZ'):
+            mode = 4
+        else:
+            print("ERROR RBW ARGUMENT INVALID")
+            return()  
+        self.commandInstrument('BW' + str(mode))
 
     
-    def setSweep(self, sweepTime, sweepMode='continious', sweepType='linear'):
+    def setSweep(self, sweepMode='continious'):
         mode = 1
-        typ = 1
         
         if(sweepMode == 'continious'):
             mode = 1
@@ -853,8 +890,13 @@ class HP3577(object):
             mode = 3
         else:
             print("ERROR SWEEP MODE ARGUMENT INVALID")
-            return()
-
+            return()  
+        print('SM' + str(mode))
+        self.commandInstrument('SM ' + str(mode))
+        return()
+        
+        
+    def setSweepType(self, sweepType='linear'):  
         if(sweepType == 'linear'):
             typ = 1     
         elif(sweepType == 'alternate'):
@@ -866,31 +908,46 @@ class HP3577(object):
         else:
             print("ERROR SWEEP TYPE ARGUMENT INVALID")
             return()
-            
-        print('ST'+str(typ)+', SM' + str(mode) + ', SWT ' + str(sweepTime) + ' MSC')
-        self.commandInstrument('ST'+str(typ)+', SM' + str(mode)+ ', SWT ' + str(sweepTime) + ' MSC')
-        return()
+        self.commandInstrument('ST'+str(typ))
+               
         
-        
+    def setSweepTime(self, sweepTime): 
+        '''
+        Set Sweep time in milliseconds
+        '''
+        self.commandInstrument('SWT ' + str(sweepTime) + ' MSC') 
+    
+    
+    def doSingleSweep(self, sweepTime):
+        '''
+        Will set and trigger a single sweep of the instrument
+        '''
+        self.setSweep(sweepMode='single')
+        self.trigger()
+        time.sleep(sweepTime)
+        while(self.sweepComplete() == False):
+            time.sleep(1)
+
+ 
     def trigger(self):
         '''
         Will imeadiatly trigger insturment
         '''
-        self.commandInstrument('TG4')
+        self.commandInstrument('TRG')
         
     
     def setFRQ(self, startF, stopF):
         '''
         Set start and stop frequency in MHZ
         '''
-        self.commandInstrument('FRA ' + str(startF) + ' MHZ, FRB ' + str(stopF) + 'MHZ')
+        self.commandInstrument('FRA ' + str(startF) + 'MHZ, FRB ' + str(stopF) + 'MHZ')
         
         
     def setCenterFRQ(self, centerF):
         '''
         set center freqeuency in MHz
         '''
-        self.commandInstrument('FRC '+str(centerF)+'MHZ')        
+        self.commandInstrument('FRC '+str(centerF)+' MHZ')        
       
         
     def normalize(self, channel):
@@ -901,7 +958,11 @@ class HP3577(object):
         self.commandInstrument('NRS')
        
         
-    def setAVERAGE(self, averageMode):
+    def setAverage(self, averageMode):
+        '''
+        Set average of measurments
+        TODO
+        '''
         return()
         
         
@@ -958,6 +1019,9 @@ class HP3577(object):
         Net = Network(frequency=fObject, s=buffer, z0=[50], name=str(channel))
         
         return Net
+    
+    def setSourceAmplitude(self, amplitude):
+        self.commandInstrument('SAM'+str(amplitude))
 
         
 

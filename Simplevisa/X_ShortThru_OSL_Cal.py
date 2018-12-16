@@ -21,10 +21,10 @@ import matplotlib.pyplot as plt
 '''
 User Settings
 '''
-startFrequency = 1000
-stopFrequency = 10000000
+startFrequency = 0.1
+stopFrequency = 10
 BW = 10
-SweepTime = 50
+sweepTime = 50000 #[ms]
 
 
 '''
@@ -39,7 +39,7 @@ def Xcal(K1, K2, K3, R, A):
     return Zx
 
 
-'''
+'''xczxc
 Load all the OSL cal K parameters from file - You can get them by executing Save_OSL.py first
 '''
 K1 = np.loadtxt('HP3577_HighZImpeadanceMeas\K1.txt').view(complex).reshape(-1) #Read array from file
@@ -48,9 +48,20 @@ K3 = np.loadtxt('HP3577_HighZImpeadanceMeas\K3.txt').view(complex).reshape(-1) #
 
 
 '''
-Get the current meas data to calculate impeadance
+Setup instrument and get the current meas data to calculate impeadance
 '''
 vna = simplevisa.HP3577(0,11)
+vna.reset()
+vna.setSweepTime(sweepTime)
+vna.setSweepType(sweepType='log')
+vna.setRBW('1HZ')
+vna.setImpeadance('R', '1MOhm')
+vna.setImpeadance('A', '1MOhm')
+vna.setAttenuation('R', '20dB')
+vna.setAttenuation('A', '20dB')
+vna.setFRQ(startFrequency, stopFrequency)
+vna.setSourceAmplitude('10 MV')
+vna.doSingleSweep()
 R = vna.getDataNP('R')
 A = vna.getDataNP('A')
 
