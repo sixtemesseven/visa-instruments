@@ -7,7 +7,7 @@ Created on Thu Dec 13 23:09:20 2018
 WORK IN PROGRESS 
 
 Goal is to implement OSL cal formula as described in: http://www.hpl.hp.com/hpjournal/94oct/oct94a12.pdf
-Please Run \Get_OSL_Cal.py first to get the cal values saved...
+Please Run \Get_OSL_Cal.py first to get the cal values Kx saved
 
 TODO: Pack the fun defs somwhere better...
 TODO: Save K values into sub-folder
@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 startFrequency = 0.1
 stopFrequency = 10
 BW = 10
-sweepTime = 50000 #[ms]
+sweepTime = 5000 #[ms]
 
 
 '''
@@ -61,7 +61,7 @@ fStep = (stopFrequency - startFrequency) / (400)
 yAxis = np.arange(startFrequency, stopFrequency, fStep)
 Xdut = Xcal(K1, K2, K3, R, A)
 plt.plot(yAxis, np.absolute(Xdut))
-plt.plot(yAxis, np.angle(Xdut))
+#plt.plot(yAxis, np.angle(Xdut))
 plt.show()
 
 

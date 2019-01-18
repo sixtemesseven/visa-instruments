@@ -855,7 +855,7 @@ class HP3577(object):
         else:
             print("ERROR ATTEN ARGUMENT INVALID")
             return()  
-        self.commandInstrument('A' + str(channel) + str(mode))
+        self.commandInstrument('I' + str(channel) + str(mode))
     
         
     def setRBW(self, rbw='1000HZ'): 

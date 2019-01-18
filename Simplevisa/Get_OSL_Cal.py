@@ -7,7 +7,8 @@ WORK IN PROGRESS
 
 Goal is to implement OSL cal formula as described in: http://www.hpl.hp.com/hpjournal/94oct/oct94a12.pdf
 
-Short script to load OSL cal data into .txt files @\HP3577_HighZImpeadanceMeas
+Short script to load OSL cal data into .txt files 
+After this run X_ShortThru_OSL_CAL.py to measure stuff
 """
 
 import numpy as np
@@ -18,8 +19,8 @@ User Settings
 '''
 startFrequency = 0.1
 stopFrequency = 10
-BW = 10
-sweepTime = 50000 #[ms]
+BW = 1000
+sweepTime = 5000 #[ms]
 
 ##################################################################################################################
 #NO USER EDITS BYOND HERE
@@ -101,3 +102,4 @@ np.savetxt('calData\K3.txt', K3.view(float).reshape(-1, 2)) #Save array to file
 
 
 print("FINISHED")
+print('Now run "X_ShortThru_OSL_CAL.py" to measure stuff')
