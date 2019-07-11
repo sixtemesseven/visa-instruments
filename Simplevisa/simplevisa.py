@@ -546,14 +546,10 @@ class HP3852A(object):
         dataFloat = list(map(float, dataStr))
         print(dataFloat[1])
 
-        
-        
 
-
-class KY236(object):
+class Keithley23x(object):
     '''
-    HP 3852A Masure Mainframe
-    - HP47701A 5 1/2Ditit Voltmeter
+    Provides simple interface to Keithley 23x series SMU's
     '''
 
     def __init__(self, bus, addr):
@@ -563,7 +559,112 @@ class KY236(object):
         self.visaID = 'GPIB' + str(bus) + '::' + str(addr) + '::INSTR'
         self.rm = visa.ResourceManager()
         self.instance = self.rm.open_resource(str(self.visaID))
+        del self.instance.timeout #DISABLE GPIB TIMEOUT FOR THIS DEVICES!!!
+
+    def measureCurrent(self, voltage, complianceRange):
+        '''
+        Get single current measurment via a constant voltage measurment Will set up the instrument.
         
+        voltage 
+            Voltage as [V] float
+              
+        complianceRange
+            Sets the maximum current of the current source
+            0 = Auto
+            1 = lnA
+            2 = lOnA
+            3 = lOOnA
+            4 = lJ.IA
+            5 = lOJ.IA
+            6 = lOOJ.IA
+            7 = lmA
+            8 = lOrnA
+            9 = lOOmA
+            10 = lA (238 only)
+
+        float
+            Returns the measured current as float [A]
+        '''
+        self.outputDataFormat()
+        self.sourceAndFunction(0, True)
+        self.biasOperation(voltage, complianceRange, 200)
+        self.compliance(0.1, 0)
+        self.triggerControl(0)
+        self.triggerConfiguration()
+        self.startOp()
+        measurment = float(self.triggerAndMeasure())
+        self.stopOp()
+        return measurment   
+    
+    def linearVoltageSweep(self, start, stop, step, delay=200, complianceCurrent=0.1):
+        '''
+        Will return a list of all a linear sweep measurment
+        
+        start:
+            Start point [float][V]
+        stop:
+            Stop point [float][V]
+        step:
+            Stop point [float][V]
+        delay:
+            Delay between measurments
+        complianceCurrent:
+            Max Current [float][A] put out by the current source   
+        '''
+        self.outputDataFormat(lines=2)
+        self.sourceAndFunction(0, True) #Constant Voltage / Sweep mode
+        self.compliance(complianceCurrent, 0) 
+        self.triggerControl(True) 
+        self.triggerConfiguration() #Default Trig Config
+        self.createSweepListLinearStair(0, delay, step, start, stop)
+        self.startOp()
+        raw = self.triggerAndMeasure() #Get the list
+        self.stopOp()
+        meas = map(float, raw.split(","))
+        return(meas)
+        
+    def linearCurrentSweep(self, start, stop, step, delay=200, complianceVoltage=10):
+        '''
+        Will return a list of all a linear sweep measurment
+        
+        start:
+            Start point [float][V]
+        stop:
+            Stop point [float][V]
+        step:
+            Stop point [float][V]
+        delay:
+            Delay between measurments
+        complianceCurrent:
+            Max Current [float][A] put out by the current source   
+        '''
+        self.outputDataFormat(lines=2)
+        self.sourceAndFunction(1, True) #Constant Voltage / Sweep mode
+        self.compliance(complianceVoltage, 0) 
+        self.triggerControl(True) 
+        self.triggerConfiguration() #Default Trig Config
+        self.createSweepListLinearStair(0, delay, step, start, stop)
+        self.startOp()
+        raw = self.triggerAndMeasure() #Get the list
+        self.stopOp()
+        meas = map(float, raw.split(","))
+        return(meas)
+        
+
+    def stopOp(self):
+        '''
+        Stops the SMU output
+        '''
+        self.setOpState(False)
+        
+    def startOp(self):
+        '''
+        Starts the SMU output
+        '''
+        self.setOpState(True)
+ 
+    #----------------------------------------------------------------------------------------
+    #GPIB LOW LEVEL FUNCTIONS  
     def commandInstrument(self, command):
         '''
         Send a GPIB command to instrument
@@ -571,102 +672,464 @@ class KY236(object):
         '''
         code = self.instance.write(str(command))
         if '<StatusCode.success: 0>' not in str(code):
-            raise Exception("RS HP3488 device did not respond correctly!")
+            raise Exception("Keithley 23x did not response!")
 
     def queryInstrument(self, request):
         '''
         Query GPIB Device
         '''
         return(self.instance.query(request))
-
-        '''
-        Set voltage and get current
-        Input:
-        Voltage input, floating point or scientific, use "."
-        '''
-
-    def measureCurrent(self, voltage):
-        self.commandInstrument(
-            "F0,0 B" +
-            str(voltage) +
-            ",0,100 N1 R1 S3 G4,2,0 X")
-        return(float(self.queryInstrument("H0X")))
         
-    def LinVoltageSweep(self, startVoltage, stopVoltage, numberOfMeasurments):
+    def createSweepListFixedLevel(self, level, Range, delay, count):
         '''
-        Input:
-            start voltage (float)
-            stop voltage (float)
-            number of measurments (int)
-        returns:
-            list of measurments
-        '''
-        self.commandInstrument("F0,0 N1 R1 S3 G4,2,0 X")
-        measurments = []
-        voltageStep = (stopVoltage - startVoltage) / numberOfMeasurments
-        voltage0 = startVoltage
-        for i in range(0, numberOfMeasurments):
-            voltage0 = voltage0 + voltageStep
-            self.commandInstrument("B" + str(voltage0) + ",0,200 X")
-            measurments.append(float(self.queryInstrument("H0X")))
-        return measurments
+        Creates a fixed Level sweep list (values stay the same for number of measurments)
+        level:
+            Specifies output level of sweep source (I or V):             
+        rang:
+            range - Selects the source range:
+                0= Auto
+                1= lnA
+                2= lOnA
+                3= lOOnA
+                4 = lJ.IA
+                5 = lOJ.IA
+                6 = lOOJ.IA
+                7= lmA
+                8= lOrnA
+                9= lOOmA
+                10 = lA ('238)
     
-    def LogVoltageSweep(self, startVoltage, stopVoltage, numberOfMeasurments):
+                V-source
+                Auto
+                1.1V ('236, 237); 1.5V (238)
+                11 V (236, 237); 15V ('238)      
+        delay:
+            Sweep delay in milliseconds (0-65000)           
+        count:
+            Number of measurments
         '''
-        Input:
-            start voltage (float)
-            stop voltage (float)
-            number of measurments (int)
-        returns:
-            list of measurments
+        self.commandInstrument("Q0," +str(level) + "," + str(Range) + "," + str(delay) + "," + str(count)+" X")
+        return
+    
+    def createSweepListLinearStair(self, Range, delay, step, start, stop):
         '''
-        self.commandInstrument("F0,0 N1 R1 S3 G4,2,0 X")
-        measurments = []
-        voltage0 = startVoltage
-        for i in range(0, numberOfMeasurments):
-            voltage0 = pow(10, (math.log10(stopVoltage - startVoltage) / numberOfMeasurments * i)) + startVoltage
-            self.commandInstrument("B" + str(voltage0) + ",0,200 X")
-            measurments.append(float(self.queryInstrument("H0X")))
-        return measurments
+        Creates a linear staircase sweep list            
+        rang:
+            range - Selects the source range:
+                0= Auto
+                1= lnA
+                2= lOnA
+                3= lOOnA
+                4 = lJ.IA
+                5 = lOJ.IA
+                6 = lOOJ.IA
+                7= lmA
+                8= lOrnA
+                9= lOOmA
+                10 = lA ('238)
+    
+                V-source
+                Auto
+                1.1V ('236, 237); 1.5V (238)
+                11 V (236, 237); 15V ('238)      
+        delay:
+            Sweep delay in milliseconds (0-65000)           
+        step:
+            Step between measurments 
+        start:
+            Start Value
+        stop:
+            Stop value      
+        '''
+        self.commandInstrument("Q1," + str(start) + "," + str(stop) + "," + str(step) + "," + str(Range) + "," + str(delay) + "X")
+        return
+    
+    def createSweepListLogStair(self, Range, delay, points, start, stop):
+        '''
+        Creates a linear staircase sweep list            
+        rang:
+            range - Selects the source range:
+                0= Auto
+                1= lnA
+                2= lOnA
+                3= lOOnA
+                4 = lJ.IA
+                5 = lOJ.IA
+                6 = lOOJ.IA
+                7= lmA
+                8= lOrnA
+                9= lOOmA
+                10 = lA ('238)
+    
+                V-source
+                Auto
+                1.1V ('236, 237); 1.5V (238)
+                11 V (236, 237); 15V ('238)      
+        delay:
+            Sweep delay in milliseconds (0-65000)           
+        points:
+            Number of Measurments 
+        start:
+            Start Value
+        stop:
+            Stop value      
+        '''
+        self.commandInstrument("Q2," + str(start) + "," + str(stop) + "," + str(points) + "," + str(Range) + "," + str(delay) + "X")
+        return
+    
+        
+    def setOpState(self, state):
+        if state is True:
+            setState = 1       
+        else:
+            setState = 0
+        self.commandInstrument("N"+str(setState)+"X")
+    
+    def modifySweepList(self, level, rang, delay, first, last):
+        '''
+        Description:
+            To change the source level, source range, or sweep 
+            delay of any points in a sweep list
+            of a previously created or appended waveform       
+        level:
+            Specifies output level of sweep source (I or V):             
+        rang:
+            range - Selects the source range:
+                0= Auto
+                1= lnA
+                2= lOnA
+                3= lOOnA
+                4 = lJ.IA
+                5 = lOJ.IA
+                6 = lOOJ.IA
+                7= lmA
+                8= lOrnA
+                9= lOOmA
+                10 = lA ('238)
+    
+                V-source
+                Auto
+                1.1V ('236, 237); 1.5V (238)
+                11 V (236, 237); 15V ('238)      
+        delay:
+            Sweep delay in milliseconds (0-65000)           
+        first:
+            First data point (1-1000)        
+        last:
+            Last data point (1-1000)
+        '''
+        self.commandInstrument("A" +str(level) + "," + str(rang) + "," + str(delay) + "," + str(first) + "," + str(last)+" X")
+        return
     
     
-    def plotVI(self, startVoltage, stopVoltage, numberOfMeasurments, sweepType='Lin'):
+    def biasOperation(self, level, rang, delay):
         '''
-        Input:
-            start voltage (float)
-            stop voltage (float)
-            number of measurments (int)
-            sweep Type:
-                DEFAULT: Lin Linear
-                OPTION: Log Logarithmic
+        Description:
+            To program the de bias operation, the non-triggered sweep source value, and the toFF
+            source value of pulsed sweeps.
             
-        plots:
-            VI Curve
-        '''
-        measurments = []
-        testVoltages = []
-        
-        if sweepType is 'Lin':
-            voltage0 = startVoltage
-            voltageStep = (stopVoltage - startVoltage) / numberOfMeasurments
-            for i in range(0, numberOfMeasurments):
-                voltage0 = voltage0 + voltageStep
-                testVoltages.append(voltage0)
-            measurments = self.LinVoltageSweep(startVoltage, stopVoltage, numberOfMeasurments)
+        level:
+            Specifies output level of sweep source in V or A
             
-        if sweepType is 'Log':
-            voltage0 = startVoltage
-            for i in range(0, numberOfMeasurments):
-                voltage0 = pow(10, (math.log10(stopVoltage - startVoltage) / numberOfMeasurments * i)) + startVoltage
-                testVoltages.append(voltage0)
-            measurments = self.LogVoltageSweep(startVoltage, stopVoltage, numberOfMeasurments)
+        rang:
+            range - Selects the source range:
+                0= Auto
+                1= lnA
+                2= lOnA
+                3= lOOnA
+                4 = lJ.IA
+                5 = lOJ.IA
+                6 = lOOJ.IA
+                7= lmA
+                8= lOrnA
+                9= lOOmA
+                10 = lA ('238)
+    
+                V-source
+                Auto
+                1.1V ('236, 237); 1.5V (238)
+                11 V (236, 237); 15V ('238)      
+        delay:
+            Sweep delay in milliseconds (0-65000) 
+        '''
+        self.commandInstrument("B" + str(level) + "," + str(rang) + "," + str(delay) + " X")
+        return
+    
+    def sourceAndFunction(self, mode, sweep=False):
+        '''
+        Description:
+            To program a source (V or I) and a function (de or sweep).
+            
+        mode:
+            0  : Source Voltage measure Current
+            1  : Source Current measure Voltage
+            
+        sweep:
+            DC if False
+            Sweep if True     
+        '''
+        Sweep = 0
+        if sweep is True:
+            Sweep = 1
+               
+        self.commandInstrument("F" + str(mode) + "," + str(Sweep) + "X")
+        return
+    
+    def outputDataFormat(self, items=4, form=2, lines=0):
+        '''
+        Description:
+            To select the type, format, and quantity of output data transmitted over the bus.
+        items:
+            O = Noitems
+            1 = Source value
+            2 = Delay value
+            4 = Measure value
+            8 = Time value        
+        format:
+            0 = ASCll data with prefix and suffix
+            1 = ASCll data with prefix, no suffix
+            2 = ASCll data, no prefix or suffix
+            3 = HP binary data
+            4 = IBM binary data       
+        lines:
+            0 = One line of de data per talk
+            1 = One line of sweep data per talk
+            2 = All lines of sweep data per talk
+        '''
+        self.commandInstrument("G" + str(items) + "," + str(form) + "," + str(lines) + " X")
+        return
+    
+    
+    def triggerAndMeasure(self):
+        '''
+        To provide an immediate trigger stimulus from the IEEE-488 bus.
+        '''
+        return(self.queryInstrument("H0X"))
         
+    
+    
+    def selfTests(self, test):
+        '''
+        To restore factory defaults and test memory and front panel display.
+        test:
+            0 = Restore factory defaults
+            1 = Perform memory test
+            2 = Perform display test
+        '''
+        self.commandInstrument("J" + str(test) + "X")
+        time.sleep(4)
+        return
+    
+    def compliance(self, level, rang):
+        '''
+        To program the compliance value and compliance/measurement range.
         
-        plt.ylabel('Curent [A]')
-        plt.xlabel('Voltage [V]')
-        plt.plot(testVoltages,measurments)
-        plt.plot(testVoltages,measurments)
-        plt.show()
+        The L command sets the compliance level for the programmed source and selects the
+        measurement range. If the unit is programmed to source current, then the L command
+        sets a voltage compliance and selects a voltage measurement range. Conversely,
+        if the unit is programmed to source voltage, the L command sets a current
+        compliance and seleCts a current measurement range.
+        
+        level:
+            Specifies the compliance level (I or V):        
+        rang:
+                range - Selects the source range:
+                0= Auto
+                1= lnA
+                2= lOnA
+                3= lOOnA
+                4 = lJ.IA
+                5 = lOJ.IA
+                6 = lOOJ.IA
+                7= lmA
+                8= lOrnA
+                9= lOOmA
+                10 = lA ('238)
+    
+                V-source
+                Auto
+                1.1V ('236, 237); 1.5V (238)
+                11 V (236, 237); 15V ('238)  
+        '''
+        self.commandInstrument("L" + str(level) + "," + str(rang) + " X")
+        return
+    
+    def operate(self, operate):
+        '''
+        To place the instrument in operate or standby mode.
+        
+        operate:
+            True = Output On
+            False = Output Off
+        '''
+        Out = 1
+        if operate is False:
+            Out = 0
+        self.commandInstrument("N" + str(Out) + " X")
+        return
+    
+    def outputSense(self, local):
+        '''
+        To select local or remote output sensing.
+        
+        local:
+            True = Local
+            False = Remote
+        '''
+        Out = 1
+        if local is False:
+            Out = 0
+        self.commandInstrument("O" + str(Out) + " X")
+        return
+    
+    def filter(self, mode):
+        '''
+        To control the number of readings averaged.
+        
+        mode:
+            0 = Filter disabled
+            1 = 2readings
+            2 = 4readings
+            3 = 8readings
+            4 = 16readings
+            5 = 32readings
+        '''
+        self.commandInstrument("P" + str(mode) + " X")
+        return
+    
+    #TODO hole range of sweep lists....
+    #TODO hole range of sweep lists....
+    #TODO hole range of sweep lists....
+    #TODO hole range of sweep lists....
+    
+    def triggerControl(self, triggerOn):
+        '''
+        To enable/ disable input and output triggers.
+        
+        triggerOn:
+            True = Enable input triggering and generation of output triggers
+            False = Disable input triggering and generation of output triggers
+        '''
+        Out = 1
+        if triggerOn is False:
+            Out = 0
+        self.commandInstrument("R" + str(Out) + " X")
+        return
+    
+    def integrationTime(self, mode):
+        '''
+        To control the integration time and resolution.
+        mode:
+            0 = 416us      Fast                    4-digit
+            1 = 4ms        Medium                  5-digit
+            2 = 16.67ms    Line Cycle (60Hz)       5-digit
+            3 = 20ms       Line Cycle (50Hz)       5-digit
+        '''
+        self.commandInstrument("S" + str(mode) + " X")
+        return
+    
+    def triggerConfiguration(self, orgin=4, triggerIn=0, triggerOut=0, triggerEnd=0):
+        '''
+        To specify the origin and effect of an input trigger, and when output triggers are generated.
+        orgin:
+            Specifies the origin of input triggers:
+            O = IEEEX
+            1 = IEEE GET
+            2 = 1EEETalk
+            3 = External (TRIGGER IN pulse)
+            4 = Immediate only (front panel MANUAL key or HOX command)         
+        triggerIn:
+            Specifies the effect of an input trigger:
+            0 = Continuous (no trigger needed to continue S-D-M cycles)
+            1 = SRC DLY MSR (trigger starts source phase)
+            2 = SRC,.DLY MSR (trigger starts delay phase)
+            3 = SRC,.DLY MSR
+            4 = SRC DL Y "MSR (trigger starts measure phase)
+            5 = SRC DLY MSR
+            6 = SRC OLY MSR
+            7 = SRC DLY MSR
+            8 = Single pulse       
+        triggerOut:
+            Specifies when an output trigger is generated:
+            0 = None during sweep
+            1 = SRC DLY MSR (end of source phase)
+            2 = SRC DLY,.MSR (end of delay phase)
+            3 = SRC DLY,.MSR
+            4 = SRC DLY MSR" (end of measure phase)
+            5 = SRC DLY MSR"
+            6 = SRC DLY MS"
+            7 = SRC DLY MSR
+            8 = Pulse end"   
+        triggerEnd:
+            Sweep End trigger out:
+            0 = Disabled
+            1 = Enabled    
+        '''
+        self.commandInstrument("T" + str(orgin) + "," + str(triggerIn) + "," + str(triggerOut) + "," + str(triggerEnd) + " X")
+        return
+    
+    def getStatus(self, status):
+        '''
+        To obtain instrument status and configuration.
+        
+        0  Send model number and firmware revision
+        1  Send error status word
+        2  Send stored ASCll string ( "02" command string)
+        3  Send machine status word
+        4  Send measurement parameters
+        5  Send compliance value
+        6  Send suppression value
+        7  Send calibration status word
+        8  Send defined sweep size
+        9  Send warning status word
+        10 Send first sweep point in compliance
+        11 Send sweep measure size
+        '''
+        return(self.queryInstrument("B" + str(status) + " X"))
+
+    
+    def hvRange(self, hvRangeEnabled=False):
+        '''
+        To control the output of voltages on the llOOV range of a Model237 Source Measure
+        Unit.
+        '''
+        Out = 0
+        if hvRangeEnabled is True:
+            Out = 1
+        self.commandInstrument("V" + str(Out) + " X")
+        return
+    
+    def defaultDelay(self, delayEnabled=True):
+        '''
+        To enable/ disable the default delay of the source-delay-measure cycle.
+        '''
+        Out = 0
+        if delayEnabled is True:
+            Out = 1
+        self.commandInstrument("W" + str(Out) + " X")
+        return
+    
+    def surpress(self, enable=False):
+        '''
+        To enable/ disable the suppression of subsequent readings with the present measurement.
+        '''
+        Out = 0
+        if enable is True:
+            Out = 1
+        self.commandInstrument("Z" + str(Out) + " X")
+        return
+
+        
+    
+    
+    
+    
+    
+    
+    
+    
+    
+        
 
         
 class HP3577(object):
