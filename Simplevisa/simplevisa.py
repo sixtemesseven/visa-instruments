@@ -547,11 +547,73 @@ class HP3852A(object):
         print(dataFloat[1])
 
 
+class dualSmu(object):
+    def __init__(self, SMU0, SMU1):
+    '''
+    Initiate GPIB instance
+    '''
+    self.smu0 = SMU0
+    self.smu1 = SMU1
+
+    '''
+    Provides a wrapper for dual Source Measurment Unit measurments 
+    smu0, smu1: SMU Object
+    '''
+    def outputCharacteristicCurve(self, IBEstart, IBEstop, IBEstep, VmaxBE, VCEstart, VCEstop, VCEstep, ImaxCE, plot=False, save=False, fileName="curveTrace.pdf"):
+        '''
+        Will do a transistor Vce to Ice measurment dependend on VBe
+        
+        SMU0 should be connected to the base, SMU1 to the collector
+        LO for SMU0/1 goes to the collector
+        
+        IBEstart : [V][float] 
+            VBE Curve start voltage (normally 0)
+        IBEstop : [V][float]  
+            VBE stop voltage
+        IBEbstep : [V][float] 
+            VBE step in volts between traces            
+        VmaxBE : [A][float] 
+            Maximal allowable base current which is sourced
+        VCEstart : [V][float] 
+            Start Voltage for trace
+        VCEstop : [V][float] 
+            Stop Voltage for trace
+        VCEstep : [V][float]
+            VCE step in volts between traces 
+        ImaxCE : [A][float] 
+            Maximal allowable collector current which is sourced
+        plot : bool
+            Optional, will generate a nicely labeled plot
+            
+        return: array[VBE_Step_Bin][ICE_Measurments]
+            Will return a two dimensional float array. One dimension holds
+            measurments for each VBE trace
+            The inner dimension will hold the start-stop sweep measurments
+            for ICE [float][A]
+        '''
+        numberOfTraces = (IBEstop - IBEstart) / IBEbstep
+        numberOfMeasurments = (VCEstop - VCEstart) / VCEstep
+        outArr[numberOfTraces][numberOfMeasurments] = 0
+        self.smu0.integrationTime(3)
+        self.smu1.integrationTime(3)
+        for traceIter in range(0, numberOfTraces):
+            self.smu0.setCurrent((IBEstart + traceIter * IBEbstep), ImaxBE)
+            outArr[traceIter] = self.smu1.linearVoltageSweep(VCEstart, VCEsop, VCEstep, delay=0, complianceCurrent=ImaxCE)
+        #Plot the optained array
+        if plot is True:
+            plt.cla()
+            for traceIter in range(0, numberOfTraces):
+                plt.plot(outArr[traceIter]) 
+            plt.show
+        if plot is true and save is true:
+            plt.savefig(fileNam)
+        return outArr
+
+
 class Keithley23x(object):
     '''
     Provides simple interface to Keithley 23x series SMU's
     '''
-
     def __init__(self, bus, addr):
         '''
         Initiate GPIB instance
@@ -560,16 +622,24 @@ class Keithley23x(object):
         self.rm = visa.ResourceManager()
         self.instance = self.rm.open_resource(str(self.visaID))
         del self.instance.timeout #DISABLE GPIB TIMEOUT FOR THIS DEVICES!!!
-
-    def measureCurrent(self, voltage, complianceRange):
+        
+         voltage, complianceLevel, delay=0, sourceRange=0, complianceRange=0
+        
+    def currentSource(self, current, complianceLevel, delay=0, sourceRange=0, compliancRange=0):
         '''
         Get single current measurment via a constant voltage measurment Will set up the instrument.
         
         voltage 
             Voltage as [V] float
               
-        complianceRange
-            Sets the maximum current of the current source
+        complianceLevel [float][V]
+            Set the maximum voltage output of the current source
+            
+        delay [int][ms]
+            Delay between measurments
+      
+        sourceRange
+            Output Range for the current source
             0 = Auto
             1 = lnA
             2 = lOnA
@@ -581,14 +651,71 @@ class Keithley23x(object):
             8 = lOrnA
             9 = lOOmA
             10 = lA (238 only)
+            
+        complianceRange [int]
+        Output Range for the current source (limiter)
+            0 = Auto
+            1 = 1.1V (236, 237) 1.5V (238)
+            2 = 11V (236, 237) 15V (238)
+            3 = 110V
+            4 = 1100V (237, HV mode has to be activated)
+        
+        return [float]
+            Returns the measured current as float [A]
+        '''
+        self.outputDataFormat()
+        self.sourceAndFunction(1, False) #Set Current source function, single 
+        self.biasOperation(voltage, setRange, 200)
+        self.compliance(compliance, 0)
+        self.triggerControl(0)
+        self.triggerConfiguration()
+        self.startOp()
+        measurment = float(self.triggerAndMeasure())
+        self.stopOp()
+        return measurment 
+
+    def voltageSource(self, voltage, complianceLevel, delay=0, sourceRange=0, complianceRange=0):
+        '''
+        Get single current measurment via a constant voltage measurment Will set up the instrument.
+        
+        voltage 
+            Voltage as [V] float
+              
+        sourceRange
+            Output voltage range for the current source (limit)
+            0 = Auto
+            1 = 1.1V (236, 237) 1.5V (238)
+            2 = 11V (236, 237) 15V (238)
+            3 = 110V
+            4 = 1100V (237, HV mode has to be activated)
+            
+        complianceLevel
+            Set the maximum output current of the voltage source [float][A]
+        
+        complianceRange     
+            Sets the range of the compliance limiter
+            0 = Auto
+            1 = lnA
+            2 = lOnA
+            3 = lOOnA
+            4 = lJ.IA
+            5 = lOJ.IA
+            6 = lOOJ.IA
+            7 = lmA
+            8 = lOrnA
+            9 = lOOmA
+            10 = lA (238 only)
+            
+        delay
+            Set the delay between measurments [ms]
 
         float
             Returns the measured current as float [A]
         '''
         self.outputDataFormat()
-        self.sourceAndFunction(0, True)
-        self.biasOperation(voltage, complianceRange, 200)
-        self.compliance(0.1, 0)
+        self.sourceAndFunction(0, False)
+        self.biasOperation(voltage, sourceRange, delay)
+        self.compliance(complianceLevel, complianceRange)
         self.triggerControl(0)
         self.triggerConfiguration()
         self.startOp()
@@ -596,7 +723,8 @@ class Keithley23x(object):
         self.stopOp()
         return measurment   
     
-    def linearVoltageSweep(self, start, stop, step, delay=200, complianceCurrent=0.1):
+    
+    def linearVoltageSweep(self, start, stop, step, delay=0, complianceCurrent=0.1):
         '''
         Will return a list of all a linear sweep measurment
         
@@ -623,7 +751,7 @@ class Keithley23x(object):
         meas = map(float, raw.split(","))
         return(meas)
         
-    def linearCurrentSweep(self, start, stop, step, delay=200, complianceVoltage=10):
+    def linearCurrentSweep(self, start, stop, step, delay=0, complianceVoltage=10):
         '''
         Will return a list of all a linear sweep measurment
         
