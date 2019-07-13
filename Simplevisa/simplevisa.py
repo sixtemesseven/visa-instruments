@@ -19,6 +19,7 @@ import math
 import cmath
 import time
 from skrf import Network, Frequency
+from mpl_toolkits.mplot3d import Axes3D
 
         
         
@@ -548,18 +549,78 @@ class HP3852A(object):
 
 
 class dualSmu(object):
-    def __init__(self, SMU0, SMU1):
-    '''
-    Initiate GPIB instance
-    '''
-    self.smu0 = SMU0
-    self.smu1 = SMU1
-
     '''
     Provides a wrapper for dual Source Measurment Unit measurments 
     smu0, smu1: SMU Object
     '''
-    def outputCharacteristicCurve(self, IBEstart, IBEstop, IBEstep, VmaxBE, VCEstart, VCEstop, VCEstep, ImaxCE, plot=False, save=False, fileName="curveTrace.pdf"):
+    def __init__(self, SMU0, SMU1):
+        '''
+        Initiate GPIB instance
+        '''
+        self.smu0 = SMU0
+        self.smu1 = SMU1
+
+    def curveTracerFET(self, VgStart, VgStop, VgStep, ImaxGate, VdsStart, VdsStop, VdsStep, IMaxDS, plot=False, savePlot=False, plotName="curveTrace.pdf", saveData=False, dataName="curveTrac.csv"):
+        '''
+        Will do a FET Vds to Ids measurment for a stepped Vgate
+        
+        SMU0 should be connected to the gate, SMU1 to the drain
+        LO for SMU0/1 goes to the source
+        
+        VgStart : [V][float] 
+            Vgate Curve start voltage (normally 0)
+        VgStop : [V][float]  
+            Vgate stop voltage
+        VgStep : [V][float] 
+            Vgate step in volts between traces            
+        ImaxGate : [A][float] 
+            Maximal allowable gate current which is sourced 
+        VdsStart : [V][float] 
+            Start Voltage for trace
+        VdsStop : [V][float] 
+            Stop Voltage for trace
+        VdsStep : [V][float]
+            VCE step in volts between traces 
+        IMaxDS : [A][float] 
+            Maximal allowable collector current which is sourced
+        plot : bool
+            Optional, will generate a nicely labeled plot
+            
+        return: array[VBE_Step_Bin][ICE_Measurments]
+            Will return a two dimensional float array. One dimension holds
+            measurments for each VBE trace
+            The inner dimension will hold the start-stop sweep measurments
+            for ICE [float][A]
+        '''
+        numberOfTraces = int((VgStop - VgStart) / VgStep)
+        numberOfMeasurments = int((VdsStop - VdsStart) / VdsStep) + 1
+        outArr = np.zeros((numberOfTraces, numberOfMeasurments))
+        for traceIter in range(0, numberOfTraces):
+            self.smu0.voltageSource((VgStart + traceIter * VgStep), ImaxGate, disableAfter=False)
+            outArr[traceIter] = self.smu1.linearVoltageSweep(VdsStart, VdsStop, VdsStep, delay=20, complianceCurrent=IMaxDS)
+        self.smu0.stopOp()
+        #Plot the optained array
+        IBE = np.arange(VgStart, VgStop, VgStep)
+        VCE = np.arange(VdsStart, VdsStop + VdsStep, VdsStep)
+        if plot is True:
+            plt.cla()             
+            for traceIter in range(0, numberOfTraces):
+                plt.plot(VCE, outArr[traceIter], label="{:5.2f}".format(IBE[traceIter])+"V") 
+            plt.legend(loc=4) 
+            plt.title("Transistor Curve Tracer Plot")
+            plt.xlabel("Vce [V]")
+            plt.ylabel("Ice [A]")
+            plt.show
+        if plot is True and savePlot is True:
+            plt.savefig(plotName)      
+        if saveData is True:
+            outArr.tofile(dataName, sep=',', format='10.5f')
+            
+            
+            
+        return outArr
+
+    def curveTracerBJT(self, IBEstart, IBEstop, IBEstep, VmaxBE, VCEstart, VCEstop, VCEstep, ImaxCE, plot=False, save=False, fileName="curveTrace.pdf"):
         '''
         Will do a transistor Vce to Ice measurment dependend on VBe
         
@@ -591,22 +652,37 @@ class dualSmu(object):
             The inner dimension will hold the start-stop sweep measurments
             for ICE [float][A]
         '''
-        numberOfTraces = (IBEstop - IBEstart) / IBEbstep
-        numberOfMeasurments = (VCEstop - VCEstart) / VCEstep
-        outArr[numberOfTraces][numberOfMeasurments] = 0
-        self.smu0.integrationTime(3)
-        self.smu1.integrationTime(3)
+        numberOfTraces = int((IBEstop - IBEstart) / IBEstep)
+        numberOfMeasurments = int((VCEstop - VCEstart) / VCEstep) + 1
+        outArr = np.zeros((numberOfTraces, numberOfMeasurments))
         for traceIter in range(0, numberOfTraces):
-            self.smu0.setCurrent((IBEstart + traceIter * IBEbstep), ImaxBE)
-            outArr[traceIter] = self.smu1.linearVoltageSweep(VCEstart, VCEsop, VCEstep, delay=0, complianceCurrent=ImaxCE)
+            self.smu0.currentSource((IBEstart + traceIter * IBEstep), VmaxBE, disableAfter=False)
+            outArr[traceIter] = self.smu1.linearVoltageSweep(VCEstart, VCEstop, VCEstep, delay=20, complianceCurrent=ImaxCE)
+        self.smu0.stopOp()
         #Plot the optained array
         if plot is True:
             plt.cla()
+            IBE = np.arange(IBEstart, IBEstop, IBEstep)
+            VCE = np.arange(VCEstart, VCEstop + VCEstep, VCEstep)           
             for traceIter in range(0, numberOfTraces):
-                plt.plot(outArr[traceIter]) 
+                plt.plot(VCE, outArr[traceIter], label="{:.2E}".format(IBE[traceIter])+"A") 
+            plt.legend(loc=4) 
+            plt.title("Transistor Curve Tracer Plot")
+            plt.xlabel("Vce [V]")
+            plt.ylabel("Ice [A]")
             plt.show
-        if plot is true and save is true:
-            plt.savefig(fileNam)
+        if plot is True and save is True:
+            plt.savefig(fileName)
+        return outArr
+    
+    def tranceOneFixOneLinearStepped(self, smuFix, smuLinearStep, fixedStart, fixedStop, fixedStep, fixedLimit, linearStepStart, linearStepStop, linearStepStep, linearStepLimit):
+        numberOfTraces = int((fixedStop - fixedStart) / fixedStep)
+        numberOfMeasurments = int((linearStepStop - linearStepStart) / linearStepStep) + 1
+        outArr = np.zeros((numberOfTraces, numberOfMeasurments))
+        for traceIter in range(0, numberOfTraces):
+            self.smuFix.currentSource((fixedStart + traceIter * fixedStep), fixedLimit, disableAfter=False)
+            outArr[traceIter] = self.smuLinearStep.linearVoltageSweep(linearStepStart, linearStepStop, linearStepStep, delay=20, complianceCurrent=linearStepLimit)
+        self.smuFix.stopOp()
         return outArr
 
 
@@ -622,10 +698,18 @@ class Keithley23x(object):
         self.rm = visa.ResourceManager()
         self.instance = self.rm.open_resource(str(self.visaID))
         del self.instance.timeout #DISABLE GPIB TIMEOUT FOR THIS DEVICES!!!
-        
-         voltage, complianceLevel, delay=0, sourceRange=0, complianceRange=0
-        
-    def currentSource(self, current, complianceLevel, delay=0, sourceRange=0, compliancRange=0):
+
+    def accurateMeasPreset(self):
+        '''
+        Will apply:
+        Max integration time for full 50Hz power cycle
+        Remote Sense
+        ...
+        '''
+        self.integrationTime(3)
+        self.outputSense(False)
+    
+    def currentSource(self, current, complianceLevel, delay=0, sourceRange=0, compliancRange=0, disableAfter=True):
         '''
         Get single current measurment via a constant voltage measurment Will set up the instrument.
         
@@ -659,22 +743,27 @@ class Keithley23x(object):
             2 = 11V (236, 237) 15V (238)
             3 = 110V
             4 = 1100V (237, HV mode has to be activated)
+            
+        disableAfter [bool]
+            Will switch output off after measurment
         
         return [float]
             Returns the measured current as float [A]
         '''
         self.outputDataFormat()
         self.sourceAndFunction(1, False) #Set Current source function, single 
-        self.biasOperation(voltage, setRange, 200)
-        self.compliance(compliance, 0)
+        self.biasOperation(current, sourceRange, 200)
+        self.compliance(complianceLevel, compliancRange)
         self.triggerControl(0)
         self.triggerConfiguration()
         self.startOp()
         measurment = float(self.triggerAndMeasure())
-        self.stopOp()
+        if disableAfter is True:
+            self.stopOp()
+
         return measurment 
 
-    def voltageSource(self, voltage, complianceLevel, delay=0, sourceRange=0, complianceRange=0):
+    def voltageSource(self, voltage, complianceLevel, delay=0, sourceRange=0, complianceRange=0, disableAfter=True):
         '''
         Get single current measurment via a constant voltage measurment Will set up the instrument.
         
@@ -708,8 +797,11 @@ class Keithley23x(object):
             
         delay
             Set the delay between measurments [ms]
+            
+            disableAfter [bool]
+            Will switch output off after measurment
 
-        float
+        return [float]
             Returns the measured current as float [A]
         '''
         self.outputDataFormat()
@@ -720,7 +812,8 @@ class Keithley23x(object):
         self.triggerConfiguration()
         self.startOp()
         measurment = float(self.triggerAndMeasure())
-        self.stopOp()
+        if disableAfter is True:
+            self.stopOp()
         return measurment   
     
     
@@ -790,6 +883,9 @@ class Keithley23x(object):
         Starts the SMU output
         '''
         self.setOpState(True)
+        
+    def factoryReset(self):
+        self.selfTests(0)
  
     #----------------------------------------------------------------------------------------
     #GPIB LOW LEVEL FUNCTIONS  
@@ -904,8 +1000,7 @@ class Keithley23x(object):
         '''
         self.commandInstrument("Q2," + str(start) + "," + str(stop) + "," + str(points) + "," + str(Range) + "," + str(delay) + "X")
         return
-    
-        
+           
     def setOpState(self, state):
         if state is True:
             setState = 1       
@@ -947,8 +1042,7 @@ class Keithley23x(object):
             Last data point (1-1000)
         '''
         self.commandInstrument("A" +str(level) + "," + str(rang) + "," + str(delay) + "," + str(first) + "," + str(last)+" X")
-        return
-    
+        return    
     
     def biasOperation(self, level, rang, delay):
         '''
@@ -1033,8 +1127,7 @@ class Keithley23x(object):
         To provide an immediate trigger stimulus from the IEEE-488 bus.
         '''
         return(self.queryInstrument("H0X"))
-        
-    
+            
     
     def selfTests(self, test):
         '''
@@ -1045,7 +1138,6 @@ class Keithley23x(object):
             2 = Perform display test
         '''
         self.commandInstrument("J" + str(test) + "X")
-        time.sleep(4)
         return
     
     def compliance(self, level, rang):
@@ -1110,9 +1202,10 @@ class Keithley23x(object):
         self.commandInstrument("O" + str(Out) + " X")
         return
     
-    def filter(self, mode):
+    def averageSamples(self, mode):
         '''
-        To control the number of readings averaged.
+        To control the number of readings averaged to archive more
+        consistent measurments
         
         mode:
             0 = Filter disabled
