@@ -1341,18 +1341,6 @@ class Keithley23x(object):
         return
 
         
-    
-    
-    
-    
-    
-    
-    
-    
-    
-        
-
-        
 class HP3577(object):
     '''
     classdocs
@@ -1411,7 +1399,9 @@ class HP3577(object):
     def getData(self, channel):       
         '''
         Intup Measurment channe: 'R', 'A', 'B'
-        Return: numpy array
+        Return: numpy array from single channel measurment
+        Format: Complex
+        Unit: [mV]
         
         Warning: Does not set number of meas. points
         '''
@@ -1429,17 +1419,7 @@ class HP3577(object):
             sample = sample + 2;    
         
         self.commandInstrument('FM1') #Turns all back on
-        return(registerDataListComplex)
-        
-        
-    def getDataNP(self, channel):
-        '''
-        Intup Measurment channe: 'R', 'A', 'B'
-        Return: numpy array
-        
-        Warning: Does not set number of meas. points
-        '''
-        return(np.asarray(self.getData(channel)))
+        return(np.asarray(registerDataListComplex))
         
         
     def plotPolar(self, channel):
@@ -1461,18 +1441,26 @@ class HP3577(object):
         plt.show()
       
         
-    def getMag(self, dataListComplex):
-        magnitudeList = []
-        for i in range(0, len(dataListComplex)):
-            magnitudeList.append(math.sqrt(pow(dataListComplex[i].real, 2) + pow(dataListComplex[i].imag, 2)))
-        return(magnitudeList)
+    def getLinMag(self, dataListComplex):
+        '''
+        Will extract Linear magnitude from complex channel meas. array
+        '''
+        return(np.absolute(dataListComplex))
         
         
-    def getPhase(self, data):
-        phaseList = []
-        for i in range(0, len(data)):
-            phaseList.append()
-        return(phaseList)
+    def getLogMag(self, dataListComplex): 
+        '''
+        Will extract the Log magnitude form complex arra
+        Assuming Z0=50 like the HP3577 does
+        '''
+        return 10 * np.log10((np.square(self.getLinMag(dataListComplex)) / 50) / 0.001)
+        
+      
+    def getPhase(self, dataListComplex):
+        '''
+        Will return the angle of the complex data array
+        '''
+        return(np.angle(dataListComplex))
         
         
     def setAVERAGE(self, averageMode):  
@@ -1486,31 +1474,6 @@ class HP3577(object):
             7 = 256
         '''
         self.commandInstrument('AB'+str(averageMode))
-  
-    
-    def plotMag(self, channel):
-        '''
-        Will plot the linear response of selected channel in [mV]
-        '''
-        plt.plot(self.getMag(self.getData(channel)))
-
-        
-    def plotPhase(self, channel):
-        plt.plot(self.getPhase(self.getData(channel)))
-        
-        
-    def plotMagdBm(self, channel, sourceResistance=50):
-        '''
-        Will plot log magnitude of channel in [dBm] assuming 50Ohm system
-        '''
-        magnitudeList = self.getMag(self.getData(channel))
-        magnitudeListLog = []
-        
-        nos = len(magnitudeList)
-        for i in range(0, nos):
-            magnitudeListLog.append(10 * math.log10(pow(magnitudeList[i], 2) / sourceResistance))
-            
-        plt.plot(magnitudeListLog)
       
 
     def setAttenuation(self, channel, attenuation='20dB'):
@@ -1527,7 +1490,7 @@ class HP3577(object):
         self.commandInstrument('A' + str(channel) + str(mode))
         
         
-    def setImpeadance(self, channel, impeadance='50Ohm'):
+    def setReceiverImpeadance(self, channel, impeadance='50Ohm'):
         '''
         Set attenuation of channel, 0dB or 20dB
         '''
@@ -1563,9 +1526,13 @@ class HP3577(object):
         self.commandInstrument('BW' + str(mode))
 
     
-    def setSweep(self, sweepMode='continious'):
-        mode = 1
+    def setSweepTriggerMode(self, sweepMode='continious'):
+        '''
+        Set the sweep trigger moed
         
+        Options: continious, single, manual
+        '''
+        mode = 1
         if(sweepMode == 'continious'):
             mode = 1
         elif(sweepMode == 'single'):
@@ -1602,58 +1569,70 @@ class HP3577(object):
         self.commandInstrument('SWT ' + str(sweepTime) + ' MSC') 
     
     
-    def doSingleSweep(self):
+    def triggerSweep(self):
         '''
         Will set and trigger a single sweep of the instrument
         '''
         self.setSweep(sweepMode='single')
-        self.trigger()
+        self.commandInstrument('TRG')
         time.sleep(2)
         while(self.sweepComplete() == False):
             time.sleep(3)
+   
+         
+    def setMarker(self, position):
+        '''
+        Sets the marker on a meas. position point
+        range: 0-400
+        '''
+        self.commandInstrument('MKP ' + str(position))
 
- 
-    def trigger(self):
-        '''
-        Will imeadiatly trigger insturment
-        '''
-        self.commandInstrument('TRG')
-        
+      
+    def dumpMarkerFrequency(self):
+        return(float(self.queryInstrument('MP1').encode('ascii','ignore')))
     
-    def setFRQ(self, startF, stopF):
+    
+    def getStartFrequency(self):
+        '''
+        Returns start frequency [Hz]
+        
+        Usefull for eg. log sweep plots...
+        '''
+        self.setMarker(0)
+        return self.dumpMarkerFrequency()
+        
+        
+    def getStopFrequency(self):
+        '''
+        Returns stop frequency [Hz]
+        
+        Usefull for eg. log sweep plots...
+        '''
+        self.setMarker(400)
+        return self.dumpMarkerFrequency()
+     
+    
+    def setFrequency(self, startF, stopF):
         '''
         Set start and stop frequency in MHZ
         '''
         self.commandInstrument('FRA ' + str(startF) + 'MHZ, FRB ' + str(stopF) + 'MHZ')
         
         
-    def setCenterFRQ(self, centerF):
+    def setCenterFrequency(self, centerF):
         '''
         set center freqeuency in MHz
         '''
         self.commandInstrument('FRC '+str(centerF)+' MHZ')        
       
         
-    def normalize(self, channel):
+    def normalizeCal(self, channel):
         self.commandInstrument('NRM')
         
         
-    def normalizeShort(self, channel):
+    def normalizeShortCal(self, channel):
         self.commandInstrument('NRS')
-       
-        
-    def setAverage(self, averageMode):
-        '''
-        Set average of measurments
-        TODO
-        '''
-        return()
-        
-        
-    def bodePlot(self, data):
-        return()
-        
-        
+           
     def saveSettings(self, memorySlot):
         '''
         Saves current settings to memory slot 1-5
@@ -1662,8 +1641,7 @@ class HP3577(object):
             return("ERROR MEMORY SLOT OUT OF RANGE")
         self.commandInstrument('SV'+str(memorySlot))
         return()
-                
-        
+                  
     def restoreSettings(self, memorySlot):
         '''
         Gets settings to memory slot 1-5
@@ -1672,12 +1650,10 @@ class HP3577(object):
             return("ERROR MEMORY SLOT OUT OF RANGE")
         self.commandInstrument('RC'+str(memorySlot))
         return()
-        
-        
+          
     def reset(self):
         self.commandInstrument('RST')
-        
-        
+              
     def getSinglePoint(self, channel, frequency, sampleTime=0.05):
         '''
         Get a single mesurement from a single channel / frequency [MHz] via CW, sample time is in [ms]
@@ -1690,8 +1666,7 @@ class HP3577(object):
         time.sleep(1)
         self.commandInstrument('TRG')
         time.sleep(1)
-        return(self.instance.query_binary_values('DR' + str(channel), datatype='d', is_big_endian=True)) #Read binary data (faster)
-        
+        return(self.instance.query_binary_values('DR' + str(channel), datatype='d', is_big_endian=True)) #Read binary data (faster)     
         
     def put1Network(self, channel, startF, stopF):
         self.setFRQ(startF, stopF)
@@ -1706,6 +1681,47 @@ class HP3577(object):
     
     def setSourceAmplitude(self, amplitude):
         self.commandInstrument('SAM'+str(amplitude))
+        
+    
+    def bodePlot(self, channel, mode='log', save=False, name="BodePlot.jpg"):
+        '''
+        Generates a Bode plot from the actual measurment
+        
+        channel: 'R', 'A', 'B'
+        mode: 'log', 'lin'
+        save: True will save plot
+        name: name and format of saved plot           
+        '''
+        #Get Frequency point array for x axis
+        if mode=='log':
+            sweep = np.geomspace(self.getStartFrequency(), self.getStopFrequency(), 400)            
+        if mode=='lin':
+            sweep = np.linspace(self.getStartFrequency(), self.getStopFrequency(), 400)
+
+        #Get data from instument
+        data = self.getData(channel)
+        
+        #clear all old plots
+        plt.cla()
+        
+        #Phase Plot
+        plt.subplot(212)
+        plt.semilogx(sweep, self.getPhase(data))
+        plt.xlabel('[Hz]')
+        plt.ylabel('Phase [deg]')
+        
+        #Magnitude Plot
+        plt.subplot(211)
+        plt.semilogx(sweep, self.getLogMag(data))
+        plt.title("self3577 Bode Plot")
+        plt.ylabel('Magnitude [dB]')
+        
+        #Show All
+        plt.show()
+        
+        #optional save
+        if save is True:
+            plt.savefig(name)
 
         
 
