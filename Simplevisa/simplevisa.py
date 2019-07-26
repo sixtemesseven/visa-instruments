@@ -1614,9 +1614,9 @@ class HP3577(object):
     
     def setFrequency(self, startF, stopF):
         '''
-        Set start and stop frequency in MHZ
+        Set start and stop frequency in [Hz]
         '''
-        self.commandInstrument('FRA ' + str(startF) + 'MHZ, FRB ' + str(stopF) + 'MHZ')
+        self.commandInstrument('FRA ' + str(startF) + 'HZ, FRB ' + str(stopF) + 'HZ')
         
         
     def setCenterFrequency(self, centerF):
@@ -1659,7 +1659,6 @@ class HP3577(object):
         Get a single mesurement from a single channel / frequency [MHz] via CW, sample time is in [ms]
         TODO Does not fully work yet ... Dont receive data ???
         '''
-
         self.commandInstrument('ST5')
         self.commandInstrument('SFR ' + str(frequency) + ' MHZ')
         self.commandInstrument('MSR ' + str(sampleTime) + ' MSC')
@@ -1681,7 +1680,7 @@ class HP3577(object):
     
     def setSourceAmplitude(self, amplitude):
         self.commandInstrument('SAM'+str(amplitude))
-        
+       
     
     def bodePlot(self, channel, mode='log', save=False, name="BodePlot.jpg"):
         '''
@@ -1691,6 +1690,8 @@ class HP3577(object):
         mode: 'log', 'lin'
         save: True will save plot
         name: name and format of saved plot           
+        
+        return values: Magnitude, Phase and Frequency point arrays
         '''
         #Get Frequency point array for x axis
         if mode=='log':
@@ -1703,16 +1704,18 @@ class HP3577(object):
         
         #clear all old plots
         plt.cla()
+        phase = self.getPhase(data)
+        mag = self.getLogMag(data)
         
         #Phase Plot
         plt.subplot(212)
-        plt.semilogx(sweep, self.getPhase(data))
+        plt.semilogx(sweep, phase)
         plt.xlabel('[Hz]')
         plt.ylabel('Phase [deg]')
         
         #Magnitude Plot
         plt.subplot(211)
-        plt.semilogx(sweep, self.getLogMag(data))
+        plt.semilogx(sweep, mag)
         plt.title("self3577 Bode Plot")
         plt.ylabel('Magnitude [dB]')
         
@@ -1722,6 +1725,8 @@ class HP3577(object):
         #optional save
         if save is True:
             plt.savefig(name)
+            
+        return mag, phase, sweep
 
         
 
